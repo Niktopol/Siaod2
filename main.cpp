@@ -4,6 +4,8 @@
 #include <vector>
 #include <algorithm>
 
+std::string genName(int);
+
 struct patient{
     int cardNum;
     int ind;
@@ -12,6 +14,12 @@ struct patient{
         this->ind = ind;
     }
 };
+struct patientInfo{
+    int cardNum;
+    char illness[8];
+    char doctor[8];
+};
+
 
 std::string genName(int len){
     std::string s = "";
@@ -25,7 +33,7 @@ void genTxtFile(int size){
     std::ofstream fout("input.txt", std::ios::trunc | std::ios::out);
     if (fout.is_open()){
         for (int i = 0; i < size; i++){
-            std::string data = std::to_string(1000000+rand()%9000000)+' ' + char(65+rand()%26) + std::to_string(10+rand()%90) + ' ' + char(65+rand()%26)+genName(7);
+            std::string data = std::to_string(1000000+rand()%9000000)+' ' + char(65+rand()%26) + std::to_string(10+rand()%90) + ' ' + char(65+rand()%26)+genName(6);
             fout << data << std::endl;
         }
     }
@@ -35,49 +43,62 @@ void genBinFile(int size){
     std::ifstream fin("input.txt");
     std::ofstream binfout("bininput.bin", std::ios::trunc | std::ios::out | std::ios::binary);
     if (fin.is_open() && binfout.is_open()){
-        int a;
-        char *code = new char[3];
-        char *surname = new char[8];
+        patientInfo info;
         for (int i = 0; i < size; i++){
-            fin >> a;
-            fin >> code;
-            fin >> surname;
-            binfout.write((char*)&a, sizeof(int));
-            binfout.write(code, 3);
-            binfout.write(surname, 8);
+            fin >> info.cardNum;
+            fin >> info.illness;
+            fin >> info.doctor;
+            binfout.write((char*)&info, sizeof(info));
         }
-        delete[] code;
-        delete[] surname;
     }
     binfout.close();
     fin.close();
 }
 
 int interpSearch(int key, std::vector<patient> &patients){
-    int low = 0;
-    int high = patients.size() - 1;
-    int mid;
-    while (patients[low].cardNum < key && patients[high].cardNum >= key){
-    //интерполирующий поиск производит оценку новой области поиска
-    //по расстоянию между ключом поиска и текущим значение элемента
-    mid = low + ((key - patients[low].cardNum) * (high - low)) / (patients[high].cardNum - patients[low].cardNum);
-    //если значение в ячейке с индексом mid меньше, то смещаем нижнюю границу
-    if (patients[mid].cardNum < key)
-        low = mid + 1;
-    //в случае, если значение больше, то смещаем верхнюю границу
-    else if (patients[mid].cardNum > key)
-        high = mid - 1;
-    //если равны, то возвращаем индекс
-    else
-        return mid;
+    int start = 0;
+    int end = patients.size() - 1;
+    int k = 0;
+    int mid = 0;
+    while ((patients[end].cardNum != patients[start].cardNum) && (patients[start].cardNum <= key) && (key <= patients[end].cardNum)){
+        k = (patients[end].cardNum-patients[start].cardNum)/(end-start);
+        mid = start +(key-patients[start].cardNum)/k;
+        if (key == patients[mid].cardNum){
+            return patients[mid].ind;
+        }else if (key < patients[mid].cardNum){
+            end = mid-1;
+        }else{
+            start = mid+1;
+        }
     }
-    //если цикл while не вернул индекс искомого значения,
-    //то проверяем не находится ли оно в ячейке массива с индексом low,
-    //иначе возвращаем -1 (значение не найдено)
-    if (patients[low].cardNum == key)
-        return low;
-    else
-        return -1;
+    if (key == patients[start].cardNum){
+        return patients[start].ind;
+    }
+    return -1;
+}
+
+bool getByKey(std::ifstream &file, int key, int size){
+    file.seekg(0, std::ios::beg);
+    patientInfo info;
+    std::vector<patient> patients;
+    for(int i = 0; i < size; i++){
+        file.read((char*)&info, sizeof(info));
+        patients.push_back(patient(info.cardNum, i));
+    }
+    std::sort(patients.begin(), patients.end(), [](patient a, patient b)
+                                  {
+                                      return a.cardNum <= b.cardNum;
+                                  });
+    int index = interpSearch(key, patients);
+    if (index == -1){
+        return false;
+    }else{
+        file.seekg(sizeof(info)*index, std::ios::beg);
+        return true;
+    }
+}
+std::string readFromAdress(std::ifstream &file){
+    
 }
 
 int main(){
@@ -92,8 +113,6 @@ int main(){
 */
     int cardNum;
     int indToSearch;
-    char *code = new char[3];
-    char *surname = new char[8];
 /*
     std::cout << "Enter card number" << std::endl;
     std::cin >> indToSearch;
@@ -115,29 +134,14 @@ int main(){
     genTxtFile(size);
     genBinFile(size);
 
-    std::vector<patient> patients;
-
+    std::ifstream binfin2("bininput.bin", std::ios::in | std::ios::binary);
+    patientInfo info;
+    
     std::cout << "Enter card number" << std::endl;
     std::cin >> indToSearch;
-    std::ifstream binfin2("bininput.bin", std::ios::in | std::ios::binary);
-    for (int i = 0; i < size; i++){
-        binfin2.read((char*)&cardNum, sizeof(int));
-        patients.push_back(patient(cardNum, i));
-        binfin2.seekg(11, std::ios::cur);
-    }
+    getByKey(binfin2, indToSearch, size);
+
+
     binfin2.close();
-    std::sort(patients.begin(), patients.end(), [](patient a, patient b)
-                                  {
-                                      return a.cardNum <= b.cardNum;
-                                  });
-    std::ofstream ft("sorted.txt", std::ios::trunc | std::ios::out);
-    for (int i = 0; i < size; i++){
-        ft << patients.at(i).ind << " " << patients.at(i).cardNum << std::endl;
-    }
-    ft.close();
-    
-    std::cout << interpSearch(indToSearch, patients) << std::endl;
-    delete[] code;
-    delete[] surname;
     return 0;
 }
