@@ -3,8 +3,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-
-std::string genName(int);
+#include <chrono>
 
 struct patient{
     int cardNum;
@@ -56,24 +55,33 @@ void genBinFile(int size){
 }
 
 int interpSearch(int key, std::vector<patient> &patients){
+    auto begin = std::chrono::high_resolution_clock::now();
     int start = 0;
     int end = patients.size() - 1;
-    int k = 0;
     int mid = 0;
-    while ((patients[end].cardNum != patients[start].cardNum) && (patients[start].cardNum <= key) && (key <= patients[end].cardNum)){
-        k = (patients[end].cardNum-patients[start].cardNum)/(end-start);
-        mid = start +(key-patients[start].cardNum)/k;
-        if (key == patients[mid].cardNum){
-            return patients[mid].ind;
-        }else if (key < patients[mid].cardNum){
+    if (patients.empty()){
+        std::cout << "Finished in: " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - begin).count() << " ns\n";
+        return -1;
+    }
+    while ((patients[start].cardNum < key) && (key < patients[end].cardNum)){
+        mid = start +(key-patients[start].cardNum)/(patients[end].cardNum-patients[start].cardNum)/(end-start);
+        if (patients[mid].cardNum < key){
+            start = mid+1;
+        }else if (patients[mid].cardNum > key){
             end = mid-1;
         }else{
-            start = mid+1;
+            std::cout << "Finished in: " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - begin).count() << " ns\n";
+            return patients[mid].ind;
         }
     }
-    if (key == patients[start].cardNum){
+    if (patients[start].cardNum == key){
+        std::cout << "Finished in: " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - begin).count() << " ns\n";
         return patients[start].ind;
+    }else if (patients[end].cardNum == key){
+        std::cout << "Finished in: " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - begin).count() << " ns\n";
+        return patients[end].ind;
     }
+    std::cout << "Finished in: " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - begin).count() << " ns\n";
     return -1;
 }
 
@@ -98,50 +106,54 @@ bool getByKey(std::ifstream &file, int key, int size){
     }
 }
 std::string readFromAdress(std::ifstream &file){
-    
+    patientInfo info;
+    file.read((char*)&info, sizeof(info));
+    return(std::to_string(info.cardNum)+ ' ' + info.illness + ' ' +info.doctor);
 }
 
 int main(){
     srand(time(nullptr));
     //Задание 2
     int size;
-    /*
+    int cardNum;
+    patientInfo info;
+
     std::cout << "Enter file size" << std::endl;
     std::cin >> size;
     genTxtFile(size);
     genBinFile(size);
-*/
-    int cardNum;
-    int indToSearch;
-/*
+
     std::cout << "Enter card number" << std::endl;
-    std::cin >> indToSearch;
-    std::ifstream binfin1("bininput.bin", std::ios::in | std::ios::binary);
+    std::cin >> cardNum;
+    std::ifstream binfin("bininput.bin", std::ios::in | std::ios::binary);
+    bool found = false;
+    auto begin = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < size; i++){
-        binfin1.read((char*)&cardNum, sizeof(int));
-        if (cardNum == indToSearch){
-            binfin1.read(code, 3);
-            binfin1.read(surname, 8);
-            std::cout << "Line №" << i+1 << " " << code << " " << surname << std::endl;
+        binfin.read((char*)&info, sizeof(patientInfo));
+        if (info.cardNum == cardNum){
+            std::cout << "Found: " <<info.cardNum << ' ' << info.illness << ' ' << info.doctor << std::endl;
+            found = true;
             break;
         }
-        binfin1.seekg(11, std::ios::cur);
     }
-    binfin1.close();*/
+    if (!found){
+        std::cout << "Record not found" << std::endl;
+    }
+    std::cout << "Finished in: " << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - begin).count() << " ns\n";
     //Задние 3
     std::cout << "Enter file size" << std::endl;
     std::cin >> size;
     genTxtFile(size);
     genBinFile(size);
-
-    std::ifstream binfin2("bininput.bin", std::ios::in | std::ios::binary);
-    patientInfo info;
     
     std::cout << "Enter card number" << std::endl;
-    std::cin >> indToSearch;
-    getByKey(binfin2, indToSearch, size);
+    std::cin >> cardNum;
+    if (getByKey(binfin, cardNum, size)){
+        std::cout << "Found: " << readFromAdress(binfin) << std::endl;
+    }else{
+        std::cout << "Record not found" << std::endl;
+    };
+    binfin.close();
 
-
-    binfin2.close();
     return 0;
 }

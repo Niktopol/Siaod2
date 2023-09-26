@@ -16,11 +16,9 @@ struct patient{
 int interpSearch(int target, std::vector<int> &A){
     int left = 0;
     int right = A.size() - 1;
-    int k = 0;
     int mid = 0;
     while ((A[right] != A[left]) && (A[left] <= target) && (target <= A[right])){
-        k = (A[right]-A[left])/(right-left);
-        mid = left +(target-A[left])/k;
+        mid = left + (target-A[left])/(A[right]-A[left])/(right-left);
         if (target == A[mid]){
             return mid;
         }else if (target < A[mid]){
